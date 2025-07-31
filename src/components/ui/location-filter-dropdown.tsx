@@ -9,40 +9,8 @@ interface LocationFilterDropdownProps {
   onReset: () => void;
   onConfirm: () => void;
   triggerRef: React.RefObject<HTMLElement>;
+  countries: string[];
 }
-
-const countries = [
-  'United States',
-  'United Kingdom', 
-  'Canada',
-  'Australia',
-  'Germany',
-  'France',
-  'Spain',
-  'Italy',
-  'Netherlands',
-  'Sweden',
-  'Norway',
-  'Denmark',
-  'Finland',
-  'Japan',
-  'South Korea',
-  'Singapore',
-  'Brazil',
-  'Mexico',
-  'Argentina',
-  'India',
-  'China',
-  'Russia',
-  'Poland',
-  'Czech Republic',
-  'Austria',
-  'Switzerland',
-  'Belgium',
-  'Portugal',
-  'Ireland',
-  'New Zealand'
-];
 
 export const LocationFilterDropdown: React.FC<LocationFilterDropdownProps> = ({
   isOpen,
@@ -52,6 +20,7 @@ export const LocationFilterDropdown: React.FC<LocationFilterDropdownProps> = ({
   onReset,
   onConfirm,
   triggerRef,
+  countries,
 }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 

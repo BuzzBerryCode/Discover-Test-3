@@ -6,8 +6,10 @@ import { cn } from "../../lib/utils";
 
 const Checkbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root> & {
+    tickSize?: string;
+  }
+>(({ className, tickSize = "h-3 w-3", ...props }, ref) => (
   <CheckboxPrimitive.Root
     ref={ref}
     className={cn(
@@ -19,7 +21,7 @@ const Checkbox = React.forwardRef<
     <CheckboxPrimitive.Indicator
       className={cn("flex items-center justify-center text-current")}
     >
-      <CheckIcon className="h-3 w-3" />
+      <CheckIcon className={tickSize} />
     </CheckboxPrimitive.Indicator>
   </CheckboxPrimitive.Root>
 ));

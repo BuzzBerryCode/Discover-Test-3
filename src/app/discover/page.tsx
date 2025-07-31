@@ -70,7 +70,7 @@ const filterConfigs = {
 };
 
 export default function DiscoverPage(): JSX.Element {
-  const { creators, niches, metrics, applyFilters, loading, error, currentMode, switchMode } = useCreatorData();
+  const { creators, niches, metrics, applyFilters, loading, error, currentMode, switchMode, countries } = useCreatorData();
 
   // Filter dropdown options
   const filterOptions = [
@@ -450,7 +450,7 @@ export default function DiscoverPage(): JSX.Element {
       databaseFilters.avg_views_max = filterValues.avgViews[1];
     }
 
-    console.log('Applying filters to database:', databaseFilters);
+    // Removed debug logging for security
     await applyFilters(databaseFilters, toggleMode);
   };
 
@@ -554,7 +554,7 @@ export default function DiscoverPage(): JSX.Element {
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: Event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
@@ -840,15 +840,16 @@ export default function DiscoverPage(): JSX.Element {
 
                   {/* Location filter dropdown */}
                   {filter.key === 'location' && (
-                    <LocationFilterDropdown
-                      isOpen={openFilter === 'location'}
-                      onClose={() => setOpenFilter(null)}
-                      selectedLocations={selectedLocations}
-                      onLocationToggle={handleLocationToggle}
-                      onReset={handleLocationReset}
-                      onConfirm={handleLocationConfirm}
-                      triggerRef={{ current: filterButtonRefs.current.location }}
-                    />
+                                      <LocationFilterDropdown
+                    isOpen={openFilter === 'location'}
+                    onClose={() => setOpenFilter(null)}
+                    selectedLocations={selectedLocations}
+                    onLocationToggle={handleLocationToggle}
+                    onReset={handleLocationReset}
+                    onConfirm={handleLocationConfirm}
+                    triggerRef={{ current: filterButtonRefs.current.location }}
+                    countries={countries}
+                  />
                   )}
 
                   {/* Buzz Score filter dropdown */}
@@ -1047,8 +1048,7 @@ export default function DiscoverPage(): JSX.Element {
                         )}
                         <Checkbox
                           checked={selectedCards.has(creator.id)}
-                          onCheckedChange={(e) => {
-                            e?.stopPropagation?.();
+                          onCheckedChange={(checked) => {
                             handleCardSelection(creator.id);
                           }}
                           onClick={(e) => e.stopPropagation()}
@@ -1288,8 +1288,7 @@ export default function DiscoverPage(): JSX.Element {
                       <div className="flex justify-center">
                         <Checkbox
                           checked={selectedCards.has(creator.id)}
-                          onCheckedChange={(e) => {
-                            e?.stopPropagation?.();
+                          onCheckedChange={(checked) => {
                             handleCardSelection(creator.id);
                           }}
                           onClick={(e) => e.stopPropagation()}

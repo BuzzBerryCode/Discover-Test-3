@@ -9,8 +9,18 @@ import { FilterDropdown } from "../../ui/filter-dropdown";
 import { LocationFilterDropdown } from "../../ui/location-filter-dropdown";
 import { PlatformFilterDropdown } from "../../ui/platform-filter-dropdown";
 import { BuzzScoreFilterDropdown } from "../../ui/buzz-score-filter-dropdown";
-import { useCreatorData } from "../../../hooks/useCreatorData";
 import { DatabaseFilters, CreatorListMode } from "../../../types/database";
+
+interface CreatorFilterSectionProps {
+  creatorData: {
+    niches: any[];
+    applyFilters: (filters: DatabaseFilters, mode?: CreatorListMode) => Promise<void>;
+    currentMode: CreatorListMode;
+    switchMode: (mode: CreatorListMode) => Promise<void>;
+    loading: boolean;
+    countries: string[];
+  };
+}
 
 // Filter configurations
 const filterConfigs = {
@@ -18,14 +28,20 @@ const filterConfigs = {
     min: 0,
     max: 500,
     step: 1,
-    formatValue: (value: number) => `${value}%`,
-    parseValue: (value: string) => parseFloat(value.replace('%', '')) || 0,
+    formatValue: (value: number) => {
+      if (value >= 500) return '500%+';
+      return `${value}%`;
+    },
+    parseValue: (value: string) => {
+      if (value.includes('500%+')) return 500;
+      return parseFloat(value.replace('%', '')) || 0;
+    },
     title: 'Filter by Engagement',
     unit: 'Engagement',
   },
   followers: {
-    min: 30000,
-    max: 300000,
+    min: 10000,
+    max: 350000,
     step: 1000,
     formatValue: (value: number) => {
       if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
@@ -44,17 +60,22 @@ const filterConfigs = {
   },
   avgViews: {
     min: 5000,
-    max: 5000000,
+    max: 1000000,
     step: 1000,
     formatValue: (value: number) => {
-      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-      if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+      if (value >= 1000000) return '1M+';
+      if (value >= 1000) {
+        const kValue = value / 1000;
+        // Display 500K instead of 503K for aesthetic purposes
+        if (kValue >= 500 && kValue < 510) return '500K';
+        return `${kValue.toFixed(0)}K`;
+      }
       return value.toString();
     },
     parseValue: (value: string) => {
       const numStr = value.toLowerCase().replace(/[^0-9.]/g, '');
       const num = parseFloat(numStr);
-      if (value.includes('m')) return num * 1000000;
+      if (value.includes('m') || value.includes('1m+')) return 1000000;
       if (value.includes('k')) return num * 1000;
       return num || 0;
     },
@@ -63,8 +84,8 @@ const filterConfigs = {
   },
 };
 
-export const CreatorFilterSection = (): JSX.Element => {
-  const { niches, applyFilters, loading, currentMode, switchMode } = useCreatorData();
+export const CreatorFilterSection: React.FC<CreatorFilterSectionProps> = ({ creatorData }) => {
+  const { niches, applyFilters, currentMode, switchMode, loading, countries } = creatorData;
 
   // Filter dropdown options
   const filterOptions = [
@@ -85,8 +106,8 @@ export const CreatorFilterSection = (): JSX.Element => {
   const [openFilter, setOpenFilter] = useState<string | null>(null);
   const [filterValues, setFilterValues] = useState({
     engagement: [0, 500] as [number, number],
-    followers: [30000, 300000] as [number, number],
-    avgViews: [5000, 5000000] as [number, number],
+    followers: [10000, 350000] as [number, number],
+    avgViews: [5000, 1000000] as [number, number],
   });
   
   // Location filter state
@@ -236,11 +257,13 @@ export const CreatorFilterSection = (): JSX.Element => {
       newSelected.add(category);
     }
     setSelectedCategories(newSelected);
+    // NO instant applyFilters call - only update local state
   };
 
   // Handle clear all
   const handleClearAll = () => {
     setSelectedCategories(new Set());
+    // NO instant applyFilters call - only update local state
   };
 
   // Handle dropdown toggle
@@ -414,7 +437,6 @@ export const CreatorFilterSection = (): JSX.Element => {
       databaseFilters.avg_views_max = filterValues.avgViews[1];
     }
 
-    console.log('Applying filters to database:', databaseFilters);
     await applyFilters(databaseFilters, toggleMode);
   };
 
@@ -524,69 +546,53 @@ export const CreatorFilterSection = (): JSX.Element => {
                   </Button>
 
                   {isDropdownOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-[280px] lg:w-[320px] xl:w-[360px] bg-white border border-[#dbe2eb] rounded-[12px] shadow-lg z-[9999] max-h-[300px] lg:max-h-[350px] xl:max-h-[400px] overflow-hidden">
-                      <div className="p-3 lg:p-4 xl:p-5">
-                        <div className="text-[12px] lg:text-[13px] xl:text-[14px] font-medium text-gray-600 mb-2 px-2">
-                          All Categories ({allCategories.length})
+                    <div className="absolute top-full right-0 mt-2 w-[280px] sm:w-[320px] lg:w-[360px] bg-white border border-[#e5e7eb] rounded-[12px] shadow-lg overflow-hidden max-h-[90vh] z-[9999]">
+                      <div className="p-3 sm:p-4">
+                        <div className="mb-3 sm:mb-4">
+                          <h3 className="text-[14px] sm:text-[16px] font-semibold text-[#111827] mb-1">
+                            Filter by Niches
+                          </h3>
                         </div>
-                        <div className="max-h-[240px] lg:max-h-[280px] xl:max-h-[320px] overflow-y-auto">
-                          <div className="grid grid-cols-2 gap-2 lg:gap-3 xl:gap-4">
-                            {getOrderedCategories().map((category, index) => (
-                              <button
-                                key={`dropdown-category-${index}`}
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleCategorySelect(category);
-                                }}
-                                className={`text-left px-3 lg:px-4 xl:px-5 py-2 lg:py-3 xl:py-4 rounded-[10px] text-[12px] lg:text-[13px] xl:text-[14px] font-medium transition-colors ${
-                                  selectedCategories.has(category)
-                                    ? getNicheStyles(category, true).replace('border-blue-300', '').replace('border-[#dbe2eb]', '')
-                                    : 'text-neutral-new900 hover:bg-gray-50'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="truncate">{category}</span>
-                                  {selectedCategories.has(category) && (
-                                    <div className="w-2 h-2 lg:w-3 lg:h-3 xl:w-4 xl:h-4 rounded-full flex-shrink-0 bg-blue-600"></div>
-                                  )}
+                                                  <div className="max-h-[240px] sm:max-h-[280px] lg:max-h-[320px] overflow-y-auto">
+                            <div className="space-y-1">
+                              {getOrderedCategories().map((category, index) => (
+                                <div
+                                  key={`dropdown-category-${index}`}
+                                  className={`flex items-center space-x-2 sm:space-x-3 p-2 rounded-[6px] cursor-pointer transition-colors ${
+                                    selectedCategories.has(category)
+                                      ? 'bg-blue-100 hover:bg-blue-200'
+                                      : 'hover:bg-gray-50'
+                                  }`}
+                                  onClick={() => handleCategorySelect(category)}
+                                >
+                                  <span className={`text-[12px] sm:text-[14px] cursor-pointer flex-1 ${
+                                    selectedCategories.has(category)
+                                      ? 'text-blue-700 font-medium'
+                                      : 'text-[#111827]'
+                                  }`}>
+                                    {category}
+                                  </span>
                                 </div>
-                              </button>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </div>
                         
-                        <div className="border-t border-gray-100 mt-3 lg:mt-4 xl:mt-5 pt-3 lg:pt-4 xl:pt-5 flex justify-between items-center">
-                          <span className="text-[11px] lg:text-[12px] xl:text-[13px] text-gray-500">
-                            {selectedCategories.size} selected
-                          </span>
-                          <div className="flex items-center gap-2 lg:gap-3 xl:gap-4">
-                            {selectedCategories.size > 0 && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleClearAll();
-                                }}
-                                className="text-[11px] lg:text-[12px] xl:text-[13px] text-blue-600 hover:text-blue-700 font-medium"
-                              >
-                                Clear All
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setIsDropdownOpen(false);
-                              }}
-                              className="text-[11px] lg:text-[12px] xl:text-[13px] text-gray-600 hover:text-gray-700 font-medium px-2 lg:px-3 xl:px-4 py-1 lg:py-2 xl:py-3 rounded bg-gray-100 hover:bg-gray-200"
-                            >
-                              Done
-                            </button>
-                          </div>
+                        <div className="p-2 sm:p-3 border-t border-[#f3f4f6] flex justify-between items-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleClearAll}
+                            className="h-7 sm:h-8 px-2 sm:px-3 text-[11px] sm:text-[12px] font-medium text-[#6b7280] hover:text-[#374151] hover:bg-[#f9fafb]"
+                          >
+                            Reset
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => setIsDropdownOpen(false)}
+                            className="h-7 sm:h-8 px-3 sm:px-4 bg-[linear-gradient(90deg,#557EDD_0%,#6C40E4_100%)] hover:bg-[linear-gradient(90deg,#4A6BC8_0%,#5A36C7_100%)] text-white text-[11px] sm:text-[12px] font-medium rounded-[6px] border-0"
+                          >
+                            Confirm
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -648,6 +654,7 @@ export const CreatorFilterSection = (): JSX.Element => {
                     onReset={handleLocationReset}
                     onConfirm={handleLocationConfirm}
                     triggerRef={{ current: filterButtonRefs.current.location }}
+                    countries={countries}
                   />
                 )}
 

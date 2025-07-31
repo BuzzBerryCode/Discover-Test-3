@@ -1,8 +1,14 @@
 import React from "react";
 import { Card, CardContent } from "../../ui/card";
 import { Icon } from "../../ui/icon";
-import { useCreatorData } from "../../../hooks/useCreatorData";
 import { formatPercentage, getTrendIcon, getTrendColor } from "../../../utils/formatters";
+
+interface MetricsTitleSectionProps {
+  creatorData: {
+    metrics: any;
+    loading: boolean;
+  };
+}
 
 // Responsive number formatting - full numbers on larger screens, abbreviated on smaller
 const formatNumberResponsive = (num: number): string => {
@@ -26,8 +32,8 @@ const formatNumberResponsive = (num: number): string => {
   }
   return num.toString();
 };
-export const MetricsTitleSection = (): JSX.Element => {
-  const { metrics, loading } = useCreatorData();
+export const MetricsTitleSection: React.FC<MetricsTitleSectionProps> = ({ creatorData }) => {
+  const { metrics, loading } = creatorData;
 
   // Static metric configurations
   const metricConfigs = [

@@ -29,7 +29,7 @@ export const Icon: React.FC<IconProps> = ({
       alt={alt}
       className={finalClassName}
       onError={(e) => {
-        console.warn(`Icon not found: /icons/${name}`);
+        // Removed debug logging for security
         // Optionally hide the image or show a placeholder
         e.currentTarget.style.display = 'none';
       }}

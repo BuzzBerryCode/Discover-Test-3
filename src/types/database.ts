@@ -33,6 +33,8 @@ export interface Creator {
   niches: Array<{ name: string; type: 'primary' | 'secondary' }>;
   hashtags?: string[];
   thumbnails: string[];
+  expanded_thumbnails?: string[];
+  share_urls?: string[]; // URLs for TikTok posts
   location?: string;
   email?: string;
   created_at: string;
@@ -65,6 +67,7 @@ export interface DatabaseFilters {
   engagement_max?: number;
   avg_views_min?: number;
   avg_views_max?: number;
+  locations?: string[];
 }
 
 export type CreatorListMode = 'ai' | 'all';
