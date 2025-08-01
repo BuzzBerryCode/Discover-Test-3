@@ -121,8 +121,13 @@ export const PlatformFilterDropdown: React.FC<PlatformFilterDropdownProps> = ({
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (event: Event) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(event.target as Node)
+      ) {
         onClose();
       }
     };
@@ -136,7 +141,7 @@ export const PlatformFilterDropdown: React.FC<PlatformFilterDropdownProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerRef]);
 
   const handlePlatformClick = (platform: typeof platformOptions[0]) => {
     if (platform.available) {
@@ -200,29 +205,23 @@ export const PlatformFilterDropdown: React.FC<PlatformFilterDropdownProps> = ({
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer with buttons */}
       <div className="p-2 sm:p-3 border-t border-[#f3f4f6] flex justify-between items-center">
-        <span className="text-[11px] sm:text-[12px] font-medium text-[#6b7280]">
-          {selectedPlatforms.size} selected
-        </span>
-        <div className="flex items-center gap-2">
-          {selectedPlatforms.size > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onReset}
-              className="h-7 sm:h-8 px-2 sm:px-3 text-[11px] sm:text-[12px] font-medium text-[#6b7280] hover:text-[#374151] hover:bg-[#f9fafb]"
-            >
-              Reset
-            </Button>
-          )}
-          <Button
-            onClick={onConfirm}
-            className="h-7 sm:h-8 px-3 sm:px-4 text-[11px] sm:text-[12px] font-medium text-white bg-[linear-gradient(90deg,#557EDD_0%,#6C40E4_100%)] hover:bg-[linear-gradient(90deg,#4A6BC8_0%,#5A36C7_100%)] rounded-[6px] border-0"
-          >
-            Confirm
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onReset}
+          className="h-7 sm:h-8 px-2 sm:px-3 text-[11px] sm:text-[12px] font-medium text-[#6b7280] hover:text-[#374151] hover:bg-[#f9fafb]"
+        >
+          Reset
+        </Button>
+        <Button
+          size="sm"
+          onClick={onConfirm}
+          className="h-7 sm:h-8 px-3 sm:px-4 bg-[linear-gradient(90deg,#557EDD_0%,#6C40E4_100%)] hover:bg-[linear-gradient(90deg,#4A6BC8_0%,#5A36C7_100%)] text-white text-[11px] sm:text-[12px] font-medium rounded-[6px] border-0"
+        >
+          Confirm
+        </Button>
       </div>
     </div>
   );

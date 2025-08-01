@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, CreatorData } from '../lib/supabase';
-import { Creator, CreatorMetrics, Niche, DatabaseFilters, CreatorListMode } from '../types/database';
+import { Creator, CreatorMetrics, Niche, DatabaseFilters, CreatorListMode, SortField, SortState } from '../types/database';
 import { getDisplayLocation, normalizeCountry, parseLocationManually, getRegionForFilter, getAvailableRegions } from '../utils/locationParser';
 
 // Pagination configuration
@@ -199,13 +199,27 @@ const transformCreatorData = async (dbCreator: any): Promise<Creator> => {
     // Parse location - use manual parsing for speed, AI only for complex cases
     let parsedLocation: any;
     const rawLocation = dbCreator.location || '';
+    const locationRegion = dbCreator.locationRegion || '';
+    
+
     
     try {
-      // Use manual parsing for now to avoid potential AI issues
-      parsedLocation = parseLocationManually(rawLocation);
+      // Use the locationRegion if available, otherwise fall back to location parsing
+      if (locationRegion && locationRegion.trim() !== '') {
+        parsedLocation = {
+          city: null,
+          country: locationRegion,
+          region: locationRegion as any,
+          isGlobal: locationRegion === 'Global',
+          rawLocation: locationRegion
+        };
+      } else {
+        // Use simple manual parsing to display raw location data
+        parsedLocation = parseLocationManually(rawLocation);
+      }
     } catch (locationError) {
       console.warn('Location parsing failed for creator:', dbCreator.id, locationError);
-      parsedLocation = { city: null, country: 'Unknown', isGlobal: false };
+      parsedLocation = { city: null, country: 'Global', region: 'Global', isGlobal: true, rawLocation: rawLocation || '' };
     }
     
     const displayLocation = getDisplayLocation(parsedLocation);
@@ -326,13 +340,19 @@ const fetchCreatorMetrics = async (filters: DatabaseFilters = {}, setTotalCount?
     query = query.gte('engagement_rate', filters.engagement_min);
   }
   if (filters.engagement_max !== undefined) {
-    query = query.lte('engagement_rate', filters.engagement_max);
+    // If max is 500 (the maximum), don't apply upper limit to include everything above 500%
+    if (filters.engagement_max < 500) {
+      query = query.lte('engagement_rate', filters.engagement_max);
+    }
   }
   if (filters.avg_views_min !== undefined) {
     query = query.gte('average_views', filters.avg_views_min);
   }
   if (filters.avg_views_max !== undefined) {
-    query = query.lte('average_views', filters.avg_views_max);
+    // If max is 1000000 (the maximum), don't apply upper limit to include everything above 1M
+    if (filters.avg_views_max < 1000000) {
+      query = query.lte('average_views', filters.avg_views_max);
+    }
   }
   if (filters.buzz_scores?.length) {
     // Simplified buzz score filtering - since all scores are currently 0
@@ -348,36 +368,8 @@ const fetchCreatorMetrics = async (filters: DatabaseFilters = {}, setTotalCount?
     // since all current buzz scores are 0, which falls under "Less than 60%"
   }
   if (filters.locations?.length) {
-    // For each selected region, match all countries in that region
-    const locationVariants: string[] = [];
-    filters.locations.forEach(region => {
-      if (region === 'Global') {
-        locationVariants.push('location.ilike.%global%');
-      } else if (region === 'United States') {
-        locationVariants.push('location.ilike.%us%', 'location.ilike.%usa%', 'location.ilike.%united states%');
-      } else if (region === 'Europe') {
-        // Add European countries
-        const europeanCountries = ['uk', 'germany', 'france', 'spain', 'italy', 'netherlands', 'sweden', 'norway', 'denmark', 'finland', 'poland', 'czech', 'austria', 'switzerland', 'belgium', 'portugal', 'ireland', 'belarus'];
-        europeanCountries.forEach(country => {
-          locationVariants.push(`location.ilike.%${country}%`);
-        });
-      } else if (region === 'Asia') {
-        // Add Asian countries
-        const asianCountries = ['japan', 'korea', 'singapore', 'india', 'china', 'philippines'];
-        asianCountries.forEach(country => {
-          locationVariants.push(`location.ilike.%${country}%`);
-        });
-      } else if (region === 'Middle East') {
-        // Add Middle Eastern countries - be more specific to avoid false matches
-        const middleEastCountries = ['saudi arabia', 'saudi', 'uae', 'united arab emirates', 'qatar', 'kuwait', 'bahrain', 'oman', 'jordan', 'lebanon', 'israel', 'turkey', 'iran', 'iraq', 'egypt'];
-        middleEastCountries.forEach(country => {
-          locationVariants.push(`location.ilike.%${country}%`);
-        });
-      }
-    });
-    if (locationVariants.length) {
-      query = query.or(locationVariants.join(','));
-    }
+    // Filter by locationRegion column
+    query = query.in('locationRegion', filters.locations);
   }
 
   const { data, count, error } = await query;
@@ -412,17 +404,44 @@ export const useCreatorData = () => {
   const [paginatedCreators, setPaginatedCreators] = useState<Creator[]>([]);
   const [aiRecommendedCreators, setAiRecommendedCreators] = useState<Creator[]>([]);
   const [allCreators, setAllCreators] = useState<Creator[]>([]);
-  const [currentMode, setCurrentMode] = useState<CreatorListMode>('ai');
-  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Initialize state from localStorage or defaults
+  const [currentMode, setCurrentMode] = useState<CreatorListMode>(() => {
+    const saved = localStorage.getItem('discover_currentMode');
+    return (saved as CreatorListMode) || 'ai';
+  });
+  
+  const [currentPage, setCurrentPage] = useState(() => {
+    const saved = localStorage.getItem('discover_currentPage');
+    return saved ? parseInt(saved, 10) : 1;
+  });
+  
   const [totalPages, setTotalPages] = useState(1);
   const [niches, setNiches] = useState<Niche[]>([]);
   const [metrics, setMetrics] = useState<CreatorMetrics | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Add currentFilters state
-  const [currentFilters, setCurrentFilters] = useState<DatabaseFilters>({});
+  
+  // Add currentFilters state with localStorage persistence
+  const [currentFilters, setCurrentFilters] = useState<DatabaseFilters>(() => {
+    const saved = localStorage.getItem('discover_currentFilters');
+    return saved ? JSON.parse(saved) : {};
+  });
+  
   const [totalFilteredCount, setTotalFilteredCount] = useState(0);
-  const [countries, setCountries] = useState<string[]>([]);
+  const [sortState, setSortState] = useState<SortState>(() => {
+    const saved = localStorage.getItem('discover_sortState');
+    return saved ? JSON.parse(saved) : { field: null, direction: 'desc' };
+  });
+
+  // Helper functions to save state to localStorage
+  const saveToLocalStorage = (key: string, value: any) => {
+    try {
+      localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+    } catch (error) {
+      console.warn('Failed to save to localStorage:', error);
+    }
+  };
 
   // Update pagination when filtered creators change
   const updatePagination = (creatorList: Creator[], page: number = 1) => {
@@ -433,12 +452,18 @@ export const useCreatorData = () => {
     
     setTotalPages(totalPages);
     setCurrentPage(page);
+    saveToLocalStorage('discover_currentPage', page);
     setPaginatedCreators(paginatedList);
   };
 
   // Handle page change
   const handlePageChange = (page: number) => {
-    fetchPaginatedCreators(page);
+    // If we have a sort state, use the sorting function, otherwise use regular pagination
+    if (sortState.field) {
+      fetchCreatorsWithSorting(sortState.field, sortState.direction);
+    } else {
+      fetchPaginatedCreators(page);
+    }
   };
 
   // Go to next page
@@ -459,6 +484,7 @@ export const useCreatorData = () => {
   const applyFilters = async (filters: DatabaseFilters, mode: CreatorListMode = currentMode) => {
     // Removed debug logging for security
     setCurrentFilters(filters);
+    saveToLocalStorage('discover_currentFilters', filters);
     setLoading(true);
     setError(null);
 
@@ -467,7 +493,7 @@ export const useCreatorData = () => {
       const metrics = await fetchCreatorMetrics(filters, setTotalFilteredCount);
       setMetrics(metrics);
       
-      // Fetch first page with new filters
+      // Reset to page 1 when applying new filters
       await fetchPaginatedCreators(1, mode, filters);
       
     } catch (err) {
@@ -478,9 +504,158 @@ export const useCreatorData = () => {
     }
   };
 
+  // Handle sorting - fetch data with server-side sorting
+  const handleSort = async (field: SortField) => {
+    const newDirection: 'asc' | 'desc' = sortState.field === field && sortState.direction === 'desc' ? 'asc' : 'desc';
+    const newSortState: SortState = { field, direction: newDirection };
+    setSortState(newSortState);
+    saveToLocalStorage('discover_sortState', newSortState);
+    
+    // Fetch data with server-side sorting using the new sort parameters
+    await fetchCreatorsWithSorting(field, newDirection);
+  };
+
+  // Fetch creators with server-side sorting
+  const fetchCreatorsWithSorting = async (sortField: SortField, sortDirection: 'asc' | 'desc') => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const startIndex = 0;
+      const endIndex = CREATORS_PER_PAGE - 1;
+      
+      // Map frontend field names to database column names
+      const getDatabaseField = (field: SortField): string => {
+        switch (field) {
+          case 'match_score':
+            return 'buzz_score'; // Use buzz_score as proxy for match_score
+          case 'followers':
+            return 'followers_count';
+          case 'avg_views':
+            return 'average_views';
+          case 'engagement':
+            return 'engagement_rate';
+          default:
+            return 'followers_count';
+        }
+      };
+
+      const databaseField = getDatabaseField(sortField);
+      
+      // Build query with server-side sorting
+      let query = supabase
+        .from('creatordata')
+        .select('*', { count: 'exact' })
+        .order(databaseField, { ascending: sortDirection === 'asc' })
+        .range(startIndex, endIndex);
+      
+      // Apply filters
+      if (currentFilters.niches?.length) {
+        query = query.in('primary_niche', currentFilters.niches);
+      }
+      if (currentFilters.platforms?.length) {
+        const platformConditions = currentFilters.platforms.map(platform => {
+          const lowerPlatform = platform.toLowerCase();
+          if (lowerPlatform === 'instagram') return 'platform.ilike.instagram';
+          if (lowerPlatform === 'tiktok') return 'platform.ilike.tiktok';
+          if (lowerPlatform === 'youtube') return 'platform.ilike.youtube';
+          if (lowerPlatform === 'x' || lowerPlatform === 'twitter') return 'platform.ilike.twitter';
+          return `platform.ilike.${platform}`;
+        });
+        query = query.or(platformConditions.join(','));
+      }
+      if (currentFilters.followers_min !== undefined) {
+        query = query.gte('followers_count', currentFilters.followers_min);
+      }
+      if (currentFilters.followers_max !== undefined) {
+        query = query.lte('followers_count', currentFilters.followers_max);
+      }
+      if (currentFilters.engagement_min !== undefined) {
+        query = query.gte('engagement_rate', currentFilters.engagement_min);
+      }
+      if (currentFilters.engagement_max !== undefined) {
+        // If max is 500 (the maximum), don't apply upper limit to include everything above 500%
+        if (currentFilters.engagement_max < 500) {
+          query = query.lte('engagement_rate', currentFilters.engagement_max);
+        }
+      }
+      if (currentFilters.avg_views_min !== undefined) {
+        query = query.gte('average_views', currentFilters.avg_views_min);
+      }
+      if (currentFilters.avg_views_max !== undefined) {
+        // If max is 1000000 (the maximum), don't apply upper limit to include everything above 1M
+        if (currentFilters.avg_views_max < 1000000) {
+          query = query.lte('average_views', currentFilters.avg_views_max);
+        }
+      }
+      if (currentFilters.buzz_scores?.length) {
+        const hasLessThan60 = currentFilters.buzz_scores.includes('Less than 60%');
+        const hasOtherRanges = currentFilters.buzz_scores.some(range => range !== 'Less than 60%');
+        
+        if (!hasLessThan60 && hasOtherRanges) {
+          query = query.eq('buzz_score', 999999);
+        }
+      }
+      if (currentFilters.locations?.length) {
+        query = query.in('locationRegion', currentFilters.locations);
+      }
+      
+      const { data, error: queryError, count } = await query;
+      if (queryError) throw queryError;
+      
+      // Transform creators
+      let transformedCreators: Creator[] = [];
+      try {
+        transformedCreators = await Promise.all((data || []).map(transformCreatorData));
+      } catch (transformError) {
+        console.error('Error transforming creators:', transformError);
+        transformedCreators = [];
+      }
+      
+      // Apply AI mode modifications and handle match score sorting
+      if (currentMode === 'ai') {
+        transformedCreators = transformedCreators.map(creator => ({
+          ...creator,
+          match_score: Math.floor(Math.random() * 40) + 60
+        }));
+        
+        // For match score sorting in AI mode, sort client-side after generating scores
+        if (sortField === 'match_score') {
+          transformedCreators.sort((a, b) => {
+            if (sortDirection === 'asc') {
+              return (a.match_score || 0) - (b.match_score || 0);
+            } else {
+              return (b.match_score || 0) - (a.match_score || 0);
+            }
+          });
+        }
+      }
+      
+      // Update state with server-sorted data
+      setCreators(transformedCreators);
+      setFilteredCreators(transformedCreators);
+      setAllCreators(transformedCreators);
+      if (currentMode === 'ai') {
+        setAiRecommendedCreators(transformedCreators);
+      }
+      
+      // Apply pagination to sorted data (always start at page 1 when sorting)
+      updatePagination(transformedCreators, 1);
+      setTotalFilteredCount(count || transformedCreators.length);
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sort creators');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
   // Switch between AI recommendations and all creators
   const switchMode = async (mode: CreatorListMode) => {
     setCurrentMode(mode);
+    saveToLocalStorage('discover_currentMode', mode);
     
     // Load appropriate data based on mode
     if (mode === 'ai') {
@@ -553,10 +728,31 @@ export const useCreatorData = () => {
     try {
       const startIndex = (page - 1) * CREATORS_PER_PAGE;
       const endIndex = startIndex + CREATORS_PER_PAGE - 1;
+      
+      // Map frontend field names to database column names
+      const getDatabaseField = (field: SortField): string => {
+        switch (field) {
+          case 'match_score':
+            return 'buzz_score'; // Use buzz_score as proxy for match_score
+          case 'followers':
+            return 'followers_count';
+          case 'avg_views':
+            return 'average_views';
+          case 'engagement':
+            return 'engagement_rate';
+          default:
+            return 'followers_count';
+        }
+      };
+
+      // Use current sort state or default to followers_count descending
+      const sortField = sortState.field ? getDatabaseField(sortState.field) : 'followers_count';
+      const sortDirection = sortState.field ? sortState.direction === 'asc' : false;
+      
       let query = supabase
         .from('creatordata')
         .select('*', { count: 'exact' })
-        .order('followers_count', { ascending: false })
+        .order(sortField, { ascending: sortDirection })
         .range(startIndex, endIndex);
       
       // Apply filters (same logic as applyFilters)
@@ -586,13 +782,19 @@ export const useCreatorData = () => {
         query = query.gte('engagement_rate', filters.engagement_min);
       }
       if (filters.engagement_max !== undefined) {
-        query = query.lte('engagement_rate', filters.engagement_max);
+        // If max is 500 (the maximum), don't apply upper limit to include everything above 500%
+        if (filters.engagement_max < 500) {
+          query = query.lte('engagement_rate', filters.engagement_max);
+        }
       }
       if (filters.avg_views_min !== undefined) {
         query = query.gte('average_views', filters.avg_views_min);
       }
       if (filters.avg_views_max !== undefined) {
-        query = query.lte('average_views', filters.avg_views_max);
+        // If max is 1000000 (the maximum), don't apply upper limit to include everything above 1M
+        if (filters.avg_views_max < 1000000) {
+          query = query.lte('average_views', filters.avg_views_max);
+        }
       }
       if (filters.buzz_scores?.length) {
         // Simplified buzz score filtering - since all scores are currently 0
@@ -608,36 +810,8 @@ export const useCreatorData = () => {
         // since all current buzz scores are 0, which falls under "Less than 60%"
       }
       if (filters.locations?.length) {
-        // For each selected region, match all countries in that region
-        const locationVariants: string[] = [];
-        filters.locations.forEach(region => {
-          if (region === 'Global') {
-            locationVariants.push('location.ilike.%global%');
-          } else if (region === 'United States') {
-            locationVariants.push('location.ilike.%us%', 'location.ilike.%usa%', 'location.ilike.%united states%');
-          } else if (region === 'Europe') {
-            // Add European countries
-            const europeanCountries = ['uk', 'germany', 'france', 'spain', 'italy', 'netherlands', 'sweden', 'norway', 'denmark', 'finland', 'poland', 'czech', 'austria', 'switzerland', 'belgium', 'portugal', 'ireland', 'belarus'];
-            europeanCountries.forEach(country => {
-              locationVariants.push(`location.ilike.%${country}%`);
-            });
-          } else if (region === 'Asia') {
-            // Add Asian countries
-            const asianCountries = ['japan', 'korea', 'singapore', 'india', 'china', 'philippines'];
-            asianCountries.forEach(country => {
-              locationVariants.push(`location.ilike.%${country}%`);
-            });
-          } else if (region === 'Middle East') {
-            // Add Middle Eastern countries - be more specific to avoid false matches
-            const middleEastCountries = ['saudi arabia', 'saudi', 'uae', 'united arab emirates', 'qatar', 'kuwait', 'bahrain', 'oman', 'jordan', 'lebanon', 'israel', 'turkey', 'iran', 'iraq', 'egypt'];
-            middleEastCountries.forEach(country => {
-              locationVariants.push(`location.ilike.%${country}%`);
-            });
-          }
-        });
-        if (locationVariants.length) {
-          query = query.or(locationVariants.join(','));
-        }
+        // Filter by locationRegion column
+        query = query.in('locationRegion', filters.locations);
       }
       
       const { data, error: queryError, count } = await query;
@@ -658,7 +832,18 @@ export const useCreatorData = () => {
           ...creator,
           match_score: Math.floor(Math.random() * 40) + 60 // Temporary: 60-100% match scores
         }));
-        transformedCreators.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+        
+        // For match score sorting in AI mode, sort client-side after generating scores
+        if (sortState.field === 'match_score') {
+          transformedCreators.sort((a, b) => {
+            if (sortState.direction === 'asc') {
+              return (a.match_score || 0) - (b.match_score || 0);
+            } else {
+              return (b.match_score || 0) - (a.match_score || 0);
+            }
+          });
+        }
+        
         setAiRecommendedCreators(transformedCreators);
       } else {
         setAllCreators(transformedCreators);
@@ -668,6 +853,7 @@ export const useCreatorData = () => {
       setFilteredCreators(transformedCreators); // For compatibility
       setPaginatedCreators(transformedCreators);
       setCurrentPage(page);
+      saveToLocalStorage('discover_currentPage', page);
       // Set total pages based on count (if available)
       if (typeof count === 'number') {
         setTotalPages(Math.ceil(count / CREATORS_PER_PAGE));
@@ -715,92 +901,17 @@ export const useCreatorData = () => {
   };
 
   // Load locations from database
-  const loadLocations = async () => {
-    try {
-      const { data, error: queryError } = await supabase
-        .from('creatordata')
-        .select('location');
-      
-      if (queryError) throw queryError;
-      
-      // Quick fallback: load regions immediately with manual parsing
-      const quickRegionSet = new Set<string>();
-      const uniqueLocations = [...new Set(data?.map(c => c.location).filter(Boolean))];
-      
-      // First, do quick manual parsing for immediate results
-      uniqueLocations.forEach(location => {
-        const parsed = parseLocationManually(location);
-        if (parsed.country && parsed.country !== 'Unknown') {
-          const region = getRegionForFilter(parsed.country);
-          quickRegionSet.add(region);
-        }
-      });
-      
-      // Set initial regions immediately (in the specified order)
-      const orderedRegions = getAvailableRegions().filter(region => quickRegionSet.has(region));
-      setCountries(orderedRegions);
-      // Removed debug logging for security
-      
-      // Then process with AI in background (optional)
-      if (uniqueLocations.length > 0) {
-        // Process locations in batches with timeout
-        const regionSet = new Set<string>();
-        const batchSize = 10;
-        const timeout = 5000; // 5 second timeout
-        
-        for (let i = 0; i < uniqueLocations.length; i += batchSize) {
-          const batch = uniqueLocations.slice(i, i + batchSize);
-          
-          try {
-            const batchPromises = batch.map(async (location) => {
-              // Use manual parsing instead of AI to avoid issues
-              return parseLocationManually(location);
-            });
-            
-            const results = await Promise.all(batchPromises);
-            
-            results.forEach((parsedLocation: any) => {
-              if (parsedLocation.country && parsedLocation.country !== 'Unknown') {
-                const region = getRegionForFilter(parsedLocation.country);
-                regionSet.add(region);
-              }
-            });
-            
-          } catch (error) {
-            // Removed debug logging for security
-            // Fallback to manual parsing for this batch
-            batch.forEach(location => {
-              const parsed = parseLocationManually(location);
-              if (parsed.country && parsed.country !== 'Unknown') {
-                const region = getRegionForFilter(parsed.country);
-                regionSet.add(region);
-              }
-            });
-          }
-        }
-        
-        // Update with AI results if different
-        const aiRegions = getAvailableRegions().filter(region => regionSet.has(region));
-        if (aiRegions.length > 0) {
-          setCountries(aiRegions);
-          // Removed debug logging for security
-        }
-      }
-      
-    } catch (err) {
-      // Removed debug logging for security
-      setCountries([]);
-    }
-  };
+  // Regions are now fixed - no need to load them dynamically
 
-  // On mount, fetch metrics and first page
+  // On mount, fetch metrics and load saved page
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
         const metrics = await fetchCreatorMetrics(currentFilters, setTotalFilteredCount);
         setMetrics(metrics);
-        await fetchPaginatedCreators(1);
+        // Load the saved page instead of always starting at page 1
+        await fetchPaginatedCreators(currentPage, currentMode, currentFilters);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load creators');
       } finally {
@@ -808,7 +919,6 @@ export const useCreatorData = () => {
       }
     })();
     loadNiches();
-    loadLocations();
   }, []);
 
   // Debug what's being returned (only log when values change)
@@ -836,10 +946,10 @@ export const useCreatorData = () => {
     switchMode,
     loadCreators,
     loadNiches,
-    loadLocations,
     handlePageChange,
     nextPage,
     previousPage,
-    countries
+    sortState,
+    handleSort
   };
 };

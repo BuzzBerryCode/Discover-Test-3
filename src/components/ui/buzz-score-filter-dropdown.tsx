@@ -102,7 +102,7 @@ export const BuzzScoreFilterDropdown: React.FC<BuzzScoreFilterDropdownProps> = (
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: Event) => {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
@@ -163,30 +163,23 @@ export const BuzzScoreFilterDropdown: React.FC<BuzzScoreFilterDropdownProps> = (
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer with buttons */}
       <div className="p-2 sm:p-3 border-t border-[#f3f4f6] flex justify-between items-center">
-        <span className="text-[11px] sm:text-[12px] text-gray-500">
-          {selectedScores.size} selected
-        </span>
-        <div className="flex items-center gap-2">
-          {selectedScores.size > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onReset}
-              className="h-8 px-3 text-[12px] font-medium text-[#6b7280] hover:text-[#374151] hover:bg-[#f9fafb]"
-            >
-              Reset
-            </Button>
-          )}
-          <Button
-            size="sm"
-            onClick={onConfirm}
-            className="h-7 sm:h-8 px-3 sm:px-4 bg-[linear-gradient(90deg,#557EDD_0%,#6C40E4_100%)] hover:bg-[linear-gradient(90deg,#4A6BC8_0%,#5A36C7_100%)] text-white text-[11px] sm:text-[12px] font-medium rounded-[6px] border-0"
-          >
-            Confirm
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onReset}
+          className="h-7 sm:h-8 px-2 sm:px-3 text-[11px] sm:text-[12px] font-medium text-[#6b7280] hover:text-[#374151] hover:bg-[#f9fafb]"
+        >
+          Reset
+        </Button>
+        <Button
+          size="sm"
+          onClick={onConfirm}
+          className="h-7 sm:h-8 px-3 sm:px-4 bg-[linear-gradient(90deg,#557EDD_0%,#6C40E4_100%)] hover:bg-[linear-gradient(90deg,#4A6BC8_0%,#5A36C7_100%)] text-white text-[11px] sm:text-[12px] font-medium rounded-[6px] border-0"
+        >
+          Confirm
+        </Button>
       </div>
     </div>
   );

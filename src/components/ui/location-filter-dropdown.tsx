@@ -9,8 +9,16 @@ interface LocationFilterDropdownProps {
   onReset: () => void;
   onConfirm: () => void;
   triggerRef: React.RefObject<HTMLElement>;
-  countries: string[];
 }
+
+// Define the 5 broad regions
+const REGIONS = [
+  'United States',
+  'Europe', 
+  'Asia',
+  'Middle East',
+  'Global'
+];
 
 export const LocationFilterDropdown: React.FC<LocationFilterDropdownProps> = ({
   isOpen,
@@ -20,7 +28,6 @@ export const LocationFilterDropdown: React.FC<LocationFilterDropdownProps> = ({
   onReset,
   onConfirm,
   triggerRef,
-  countries,
 }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +47,7 @@ export const LocationFilterDropdown: React.FC<LocationFilterDropdownProps> = ({
       
       // Adjust for viewport boundaries
       const dropdownWidth = window.innerWidth < 640 ? 280 : window.innerWidth < 1024 ? 320 : 360;
-      const dropdownHeight = 400; // Estimated max height
+      const dropdownHeight = 300; // Reduced height for fewer options
       
       // Horizontal positioning
       if (left + dropdownWidth > viewport.width) {
@@ -96,7 +103,7 @@ export const LocationFilterDropdown: React.FC<LocationFilterDropdownProps> = ({
 
   // Close on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: Event) => {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
@@ -128,30 +135,30 @@ export const LocationFilterDropdown: React.FC<LocationFilterDropdownProps> = ({
       <div className="p-3 sm:p-4">
         {/* Header */}
         <div className="mb-3 sm:mb-4">
-          <h3 className="text-[14px] sm:text-[16px] font-semibold text-[#111827] mb-1">
-            Filter by Location
+          <h3 className="text-[14px] sm:text-[16px] font-semibold text-[#111827]">
+            Filter by Region
           </h3>
         </div>
 
-        {/* Countries list */}
-        <div className="max-h-[240px] sm:max-h-[280px] lg:max-h-[320px] overflow-y-auto">
+        {/* Regions list */}
+        <div className="max-h-[200px] sm:max-h-[240px] lg:max-h-[280px] overflow-y-auto">
           <div className="space-y-2">
-            {countries.map((country) => (
+            {REGIONS.map((region) => (
               <div
-                key={country}
+                key={region}
                 className={`flex items-center space-x-2 sm:space-x-3 p-2 rounded-[6px] cursor-pointer transition-colors ${
-                  selectedLocations.has(country)
+                  selectedLocations.has(region)
                     ? 'bg-blue-100 hover:bg-blue-200'
                     : 'hover:bg-gray-50'
                 }`}
-                onClick={() => onLocationToggle(country)}
+                onClick={() => onLocationToggle(region)}
               >
                 <span className={`text-[12px] sm:text-[14px] cursor-pointer flex-1 ${
-                  selectedLocations.has(country)
+                  selectedLocations.has(region)
                     ? 'text-blue-700 font-medium'
                     : 'text-[#111827]'
                 }`}>
-                  {country}
+                  {region}
                 </span>
               </div>
             ))}

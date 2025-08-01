@@ -26,6 +26,8 @@ interface CreatorListSectionProps {
     handlePageChange: (page: number) => void;
     nextPage: () => void;
     previousPage: () => void;
+    sortState: SortState;
+    handleSort: (field: SortField) => Promise<void>;
   };
 }
 import CreatorGridView from "./CreatorGridView";
@@ -43,7 +45,9 @@ export const CreatorListSection: React.FC<CreatorListSectionProps> = ({ creatorD
     totalCreators,
     handlePageChange,
     nextPage,
-    previousPage 
+    previousPage,
+    sortState,
+    handleSort
   } = creatorData;
 
   // State for tracking selected cards
@@ -52,12 +56,6 @@ export const CreatorListSection: React.FC<CreatorListSectionProps> = ({ creatorD
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
-  
-  // Sorting state
-  const [sortState, setSortState] = useState<SortState>({
-    field: null,
-    direction: 'desc'
-  });
 
   // Handle individual card selection
   const handleCardSelection = (creatorId: string) => {
@@ -104,52 +102,7 @@ export const CreatorListSection: React.FC<CreatorListSectionProps> = ({ creatorD
     setSelectedCreator(null);
   };
 
-  // Handle sorting
-  const handleSort = (field: SortField) => {
-    setSortState(prevState => ({
-      field,
-      direction: prevState.field === field && prevState.direction === 'desc' ? 'asc' : 'desc'
-    }));
-  };
 
-  // Sort creators based on current sort state
-  const getSortedCreators = (): Creator[] => {
-    if (!sortState.field) return creators;
-
-    return [...creators].sort((a, b) => {
-      let aValue: number;
-      let bValue: number;
-
-      switch (sortState.field) {
-        case 'match_score':
-          aValue = a.match_score || 0;
-          bValue = b.match_score || 0;
-          break;
-        case 'followers':
-          aValue = a.followers;
-          bValue = b.followers;
-          break;
-        case 'avg_views':
-          aValue = a.avg_views;
-          bValue = b.avg_views;
-          break;
-        case 'engagement':
-          aValue = a.engagement;
-          bValue = b.engagement;
-          break;
-        default:
-          return 0;
-      }
-
-      if (sortState.direction === 'asc') {
-        return aValue - bValue;
-      } else {
-        return bValue - aValue;
-      }
-    });
-  };
-
-  const sortedCreators = getSortedCreators();
 
   if (loading) {
     return (
@@ -312,7 +265,7 @@ export const CreatorListSection: React.FC<CreatorListSectionProps> = ({ creatorD
           </div>
         ) : viewMode === 'cards' ? (
           <CreatorGridView
-            creators={sortedCreators}
+            creators={creators}
             currentMode={currentMode}
             selectedCards={selectedCards}
             handleCreatorClick={handleCreatorClick}
@@ -321,7 +274,7 @@ export const CreatorListSection: React.FC<CreatorListSectionProps> = ({ creatorD
           />
         ) : (
           <CreatorListView
-            creators={sortedCreators}
+            creators={creators}
             currentMode={currentMode}
             selectedCards={selectedCards}
             handleCreatorClick={handleCreatorClick}

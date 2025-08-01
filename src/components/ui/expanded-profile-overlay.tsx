@@ -106,18 +106,26 @@ export const ExpandedProfileOverlay: React.FC<ExpandedProfileOverlayProps> = ({
         {/* Header */}
         <div className="flex items-start justify-between px-[16px] md:px-[19px] py-[20px] md:py-[23px] mb-[10px] md:mb-[15px]">
           <div className="flex items-center gap-[10px] md:gap-[12px] lg:gap-[15px] xl:gap-[18px] flex-1">
-            {/* Profile Picture */}
-            <div className="w-[65px] h-[65px] md:w-[77px] md:h-[77px] lg:w-[87px] lg:h-[87px] xl:w-[87px] xl:h-[87px] bg-[#384455] rounded-full overflow-hidden flex-shrink-0">
+            {/* Profile Picture - now clickable with subtle hover effects */}
+            <a 
+              href={creator.social_media[0]?.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-[65px] h-[65px] md:w-[77px] md:h-[77px] lg:w-[87px] lg:h-[87px] xl:w-[87px] xl:h-[87px] bg-[#384455] rounded-full overflow-hidden flex-shrink-0 relative group hover:scale-102 transition-all duration-300 ease-out border-2 border-gray-200"
+            >
               {creator.profile_pic ? (
                 <img 
                   src={creator.profile_pic} 
                   alt={`${creator.username} profile`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
                 />
               ) : (
                 <div className="w-full h-full bg-[#384455]" />
               )}
-            </div>
+              
+              {/* Animated border on hover */}
+              <div className="absolute inset-0 rounded-full border-2 border-transparent group-hover:border-[#557EDD]/30 group-hover:scale-105 transition-all duration-300 ease-out" />
+            </a>
 
             {/* Creator Info */}
             <div className="flex flex-col gap-0 md:gap-[0px] lg:gap-[2px] xl:gap-[4px] flex-1 min-w-0">
@@ -128,7 +136,7 @@ export const ExpandedProfileOverlay: React.FC<ExpandedProfileOverlayProps> = ({
                       window.open(primarySocial.url, '_blank');
                     }
                   }}
-                  className="text-[#06152b] text-[12px] md:text-[19px] lg:text-[18px] xl:text-[22px] font-semibold hover:text-blue-600 transition-colors cursor-pointer text-left"
+                  className="text-[#06152b] text-[12px] md:text-[19px] lg:text-[18px] xl:text-[22px] font-bold hover:text-[#557EDD] transition-colors cursor-pointer text-left"
                 >
                   {creator.username}
                 </button>
@@ -140,11 +148,11 @@ export const ExpandedProfileOverlay: React.FC<ExpandedProfileOverlayProps> = ({
                       window.open(primarySocial.url, '_blank');
                     }
                   }}
-                  className="text-[#71737c] text-[12px] md:text-[14px] lg:text-[16px] xl:text-[18px] font-medium hover:text-blue-600 transition-colors cursor-pointer text-left"
+                  className="text-[#71737c] text-[12px] md:text-[14px] lg:text-[16px] xl:text-[18px] font-medium hover:text-[#557EDD] transition-all duration-200 cursor-pointer text-left"
                 >
                   {creator.username_tag || `@${creator.username.toLowerCase().replace(/\s+/g, '')}`}
                 </button>
-                <div className="flex items-center gap-[2px] md:gap-[2px] lg:gap-[3px]">
+                <div className="flex items-center gap-[2px] md:gap-[2px] lg:gap-[3px] bg-gray-100 rounded-full px-2 py-1">
                   {creator.social_media.map((social, iconIndex) => (
                     <Icon
                       key={iconIndex}
@@ -193,7 +201,7 @@ export const ExpandedProfileOverlay: React.FC<ExpandedProfileOverlayProps> = ({
           {/* Match Score and Close Button */}
           <div className="flex items-center gap-[6px] md:gap-[8px] lg:gap-[10px] flex-shrink-0">
             {currentMode === 'ai' && (
-              <div className="bg-green-100 text-green-600 px-[8px] md:px-[12px] lg:px-[16px] py-[4px] md:py-[6px] lg:py-[8px] rounded-[6px] md:rounded-[8px] font-bold text-[11px] md:text-[13px] lg:text-[15px]">
+              <div className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 px-[8px] md:px-[12px] lg:px-[16px] py-[4px] md:py-[6px] lg:py-[8px] rounded-[12px] md:rounded-[16px] font-bold text-[11px] md:text-[13px] lg:text-[15px] shadow-sm border border-green-200">
                 Match {creator.match_score || 0}%
               </div>
             )}
@@ -473,7 +481,8 @@ export const ExpandedProfileOverlay: React.FC<ExpandedProfileOverlayProps> = ({
 
         {/* Latest Posts */}
         <div className="px-[16px] md:px-[19px] mb-[12px] md:mb-[17px]">
-          <h3 className="text-[#71737c] text-[12px] md:text-[16px] lg:text-[16px] font-semibold mb-[8px] md:mb-[12px] lg:mb-[15px]">
+          <h3 className="text-[#06152b] text-[12px] md:text-[16px] lg:text-[16px] font-bold mb-[8px] md:mb-[12px] lg:mb-[15px] flex items-center gap-2">
+            <div className="w-1 h-4 bg-gradient-to-b from-[#557EDD] to-[#6C40E4] rounded-full"></div>
             Latest Posts
           </h3>
           <div className="grid grid-cols-4 sm:grid-cols-4 gap-[4px] md:gap-[8px] lg:gap-[15px]">
@@ -487,31 +496,40 @@ export const ExpandedProfileOverlay: React.FC<ExpandedProfileOverlayProps> = ({
               return displayThumbnails.map((thumbnail, index) => {
                 const shareUrl = creator.share_urls?.[index];
                 const isTikTok = creator.social_media[0]?.platform === 'tiktok';
+                const isInstagram = creator.social_media[0]?.platform === 'instagram';
+                const primarySocial = creator.social_media[0];
+                const profileUrl = primarySocial?.url;
+                
+                // For TikTok accounts, use the specific post URL if available, otherwise fall back to profile
+                // For Instagram and other platforms, always use profile URL
+                const clickUrl = isTikTok && shareUrl ? shareUrl : profileUrl;
                 
                 return (
-                  <div key={index} className="aspect-[9/16] rounded-[6px] md:rounded-[10px] lg:rounded-[12px] overflow-hidden border border-[#F1F4F9]">
-                    {isTikTok && shareUrl ? (
-                      <a
-                        href={shareUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block w-full h-full hover:opacity-80 transition-opacity"
-                      >
-                        <img
-                          src={thumbnail}
-                          alt={`${creator.username} post ${index + 1}`}
-                          className="w-full h-full object-cover"
-                          loading="eager"
-                        />
-                      </a>
-                    ) : (
+                  <div key={index} className="aspect-[9/16] rounded-[6px] md:rounded-[10px] lg:rounded-[12px] overflow-hidden border border-[#F1F4F9] group relative">
+                    {/* TikTok-style hover overlay */}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 ease-in-out z-10" />
+                    
+                    {/* Clickable link - TikTok leads to specific post, others to profile */}
+                    <a
+                      href={clickUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full h-full relative z-20"
+                    >
                       <img
                         src={thumbnail}
                         alt={`${creator.username} post ${index + 1}`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 ease-in-out"
                         loading="eager"
                       />
-                    )}
+                      
+                      {/* TikTok-style play button overlay on hover */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-in-out">
+                        <div className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 bg-black bg-opacity-70 rounded-full flex items-center justify-center">
+                          <div className="w-0 h-0 border-l-[8px] md:border-l-[10px] lg:border-l-[12px] border-l-white border-t-[6px] md:border-t-[8px] lg:border-t-[10px] border-t-transparent border-b-[6px] md:border-b-[8px] lg:border-b-[10px] border-b-transparent ml-[2px] md:ml-[3px] lg:ml-[4px]" />
+                        </div>
+                      </div>
+                    </a>
                   </div>
                 );
               });
@@ -519,9 +537,9 @@ export const ExpandedProfileOverlay: React.FC<ExpandedProfileOverlayProps> = ({
           </div>
           {/* Hashtags below thumbnails */}
           {creator.hashtags && creator.hashtags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
+            <div className="flex flex-wrap gap-2 mt-4">
               {creator.hashtags.map((hashtag, idx) => (
-                <span key={idx} className="text-xs text-blue-700 bg-blue-50 rounded px-2 py-1 font-medium">{hashtag}</span>
+                <span key={idx} className="text-xs text-[#557EDD] bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full px-3 py-1 font-medium border border-blue-100 shadow-sm">{hashtag}</span>
               ))}
             </div>
           )}

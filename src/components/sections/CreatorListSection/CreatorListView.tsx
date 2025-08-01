@@ -4,7 +4,7 @@ import { Checkbox } from "../../ui/checkbox";
 import { Icon } from "../../ui/icon";
 import { DonutChart } from "../../ui/donut-chart";
 import { formatNumber, getSocialMediaIcon, getMatchScoreColor } from "../../../utils/formatters";
-import { Creator, SortState } from "../../../types/database";
+import { Creator, SortState, SortField } from "../../../types/database";
 
 interface CreatorListViewProps {
   creators: Creator[];
@@ -14,7 +14,7 @@ interface CreatorListViewProps {
   handleCardSelection: (creatorId: string) => void;
   selectedCreator: Creator | null;
   sortState: SortState;
-  handleSort: (field: string) => void;
+  handleSort: (field: SortField) => Promise<void>;
 }
 
 const CreatorListView: React.FC<CreatorListViewProps> = ({

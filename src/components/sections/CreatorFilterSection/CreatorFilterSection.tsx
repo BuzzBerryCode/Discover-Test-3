@@ -18,7 +18,6 @@ interface CreatorFilterSectionProps {
     currentMode: CreatorListMode;
     switchMode: (mode: CreatorListMode) => Promise<void>;
     loading: boolean;
-    countries: string[];
   };
 }
 
@@ -85,7 +84,7 @@ const filterConfigs = {
 };
 
 export const CreatorFilterSection: React.FC<CreatorFilterSectionProps> = ({ creatorData }) => {
-  const { niches, applyFilters, currentMode, switchMode, loading, countries } = creatorData;
+  const { niches, applyFilters, currentMode, switchMode, loading } = creatorData;
 
   // Filter dropdown options
   const filterOptions = [
@@ -448,7 +447,7 @@ export const CreatorFilterSection: React.FC<CreatorFilterSectionProps> = ({ crea
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: Event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
@@ -654,7 +653,6 @@ export const CreatorFilterSection: React.FC<CreatorFilterSectionProps> = ({ crea
                     onReset={handleLocationReset}
                     onConfirm={handleLocationConfirm}
                     triggerRef={{ current: filterButtonRefs.current.location }}
-                    countries={countries}
                   />
                 )}
 

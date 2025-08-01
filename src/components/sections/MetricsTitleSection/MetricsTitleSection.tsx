@@ -10,27 +10,9 @@ interface MetricsTitleSectionProps {
   };
 }
 
-// Responsive number formatting - full numbers on larger screens, abbreviated on smaller
-const formatNumberResponsive = (num: number): string => {
-  // For very large screens (xl and above), show full numbers
-  if (window.innerWidth >= 1280) {
-    return num.toLocaleString();
-  }
-  // For large screens (lg), show full numbers up to 999,999
-  if (window.innerWidth >= 1024) {
-    if (num < 1000000) {
-      return num.toLocaleString();
-    }
-    return `${(num / 1000000).toFixed(1)}M`;
-  }
-  // For medium and smaller screens, use abbreviated format
-  if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(1)}M`;
-  }
-  if (num >= 1000) {
-    return `${(num / 1000).toFixed(0)}K`;
-  }
-  return num.toString();
+// Always show full numbers with proper formatting
+const formatNumberFull = (num: number): string => {
+  return num.toLocaleString();
 };
 export const MetricsTitleSection: React.FC<MetricsTitleSectionProps> = ({ creatorData }) => {
   const { metrics, loading } = creatorData;
@@ -45,12 +27,12 @@ export const MetricsTitleSection: React.FC<MetricsTitleSectionProps> = ({ creato
     {
       title: "Avg. Followers",
       iconSrc: "FollowerIcon.svg",
-      getValue: () => formatNumberResponsive(metrics?.avg_followers || 0),
+      getValue: () => formatNumberFull(metrics?.avg_followers || 0),
     },
     {
       title: "Avg. Views",
       iconSrc: "AvgViewsIcon.svg",
-      getValue: () => formatNumberResponsive(metrics?.avg_views || 0),
+      getValue: () => formatNumberFull(metrics?.avg_views || 0),
     },
     {
       title: "Avg. Engagement",
